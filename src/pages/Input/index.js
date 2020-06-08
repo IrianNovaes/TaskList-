@@ -8,7 +8,7 @@ import logo from "../../assets/logo.png";
 
 export default function Index() {
   const [myList, setMyList] = useState([]);
-  const [task, setTask] = useState(task);
+  const [task, setTask] = useState();
 
   const navigation = useNavigation();
 
@@ -21,7 +21,7 @@ export default function Index() {
       },
     ]);
   }
-  console.log("aaaaaaaaaaaaaaaaaa" + task);
+
   return (
     <View style={styles.container}>
       <Image source={logo} />
@@ -32,8 +32,8 @@ export default function Index() {
         style={styles.input}
         name={"input"}
         placeholder={" Enter here whatever "}
-        defaultValue={task}
-        OnChangeText={(task) => onChange(setTask(task))}
+        onChangeText={text => setTask(text)}
+        value={task}
       />
 
       <TouchableOpacity style={styles.submit} onPress={() => addNewItem()}>
