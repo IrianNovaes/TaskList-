@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { useNavigation } from "@react-navigation/native";
-import AsyncStorage from "@react-native-community/async-storage";
-import { CheckBox } from "react-native-elements";
 import {
   Text,
   View,
@@ -10,7 +8,11 @@ import {
   ImageBackground,
   StatusBar,
   FlatList,
+  ActivityIndicator,
 } from "react-native";
+
+// Services
+import { getTasks, getCategories, deleteTask } from "../../services/api";
 
 // Styles
 import styles from "./style";
@@ -19,50 +21,62 @@ import global from "../global";
 //Components
 import FooterMenu from "../../components/Footer";
 import TopMenu from "../../components/TopMenu";
+import Dropdown from "../../components/Dropdown";
+import Checkbox from "../../components/Checkbox";
 
 // Images
 import bg from "../../assets/bg.png";
 
 // Icons
-import check from "../../assets/check.png";
 import trash from "../../assets/trash.png";
-import edit from "../../assets/edit.png";
-import dots from "../../assets/dots.png";
 import goBack from "../../assets/goBack.png";
-import menu from "../../assets/menuTop.png";
+import edit from "../../assets/edit.png";
 
 export default function List() {
   const [myList, setMyList] = useState([]);
-  const [task, setTask] = useState();
-  const [checked, setChecked] = useState(false);
+  const [display, setDisplay] = useState(false);
+  const [categories, setCategories] = useState([]);
+  const [filter, setFilter] = useState();
+  const [refresh, setRefresh] = useState(false);
 
   const navigation = useNavigation();
 
-  async function getData() {
-    try {
-      const jsonValue = await AsyncStorage.getItem("myTasks");
-      jsonValue != null ? setMyList(JSON.parse(jsonValue)) : null;
-    } catch (e) {
-      // read error
-    } finally {
-      // read storage
-      const currentStorage = await AsyncStorage.getItem("myTasks");
-      console.log(`My current storage: \n  ${currentStorage}`);
-    }
-  }
+  async function data() {
+    setRefresh(true);
 
+    const task = await getTasks();
+    setMyList(task);
+    const cat = await getCategories();
+    setCategories(cat);
+
+    setRefresh(false);
+  }
   useEffect(() => {
-    getData();
+    const abortController = new AbortController();
+    data();
+    return function cleanup() {
+      abortController.abort();
+    };
   }, []);
+
+  const Delete = async (value) => {
+    setDisplay(true);
+    await deleteTask(value);
+    setDisplay(false);
+  };
 
   const EmptyList = () => {
     return (
       <View>
-        <Text style={[styles.title, { textAlign: "center" }]}>
+        <Text style={[styles.description, { textAlign: "center" }]}>
           No Task Found
         </Text>
       </View>
     );
+  };
+
+  const HandleDropdown = (value) => {
+    setFilter(value);
   };
 
   return (
@@ -70,17 +84,22 @@ export default function List() {
       <StatusBar
         barStyle="light-content"
         translucent={true}
-        backgroundColor={"transparent"}
+        backgroundColor={"rgba(0, 0, 0, 0.1)"}
       />
       <ImageBackground source={bg} style={global.bg}>
         <View style={global.wrapper}>
-          <View style={[global.row, { paddingRight: 20 }]}>
+          <View style={[global.row, { paddingRight: 20, overflow: "visible" }]}>
             <TouchableOpacity
               onPress={() => {
                 navigation.goBack();
               }}
+              style={{ width: 30, height: 30 }}
             >
-              <Image source={goBack} style={{ width: 20, height: 25 }} />
+              <Image
+                source={goBack}
+                resizeMethod={"scale"}
+                resizeMode={"contain"}
+              />
             </TouchableOpacity>
             <TopMenu />
           </View>
@@ -88,18 +107,52 @@ export default function List() {
           <View style={global.titleWrapper}>
             <Text style={global.title}>Check Your Tasks</Text>
           </View>
+          {/* Filter */}
+          <View
+            style={{
+              width: "100%",
+              height: 35,
+              justifyContent: "flex-end",
+              alignItems: "flex-end",
+              zIndex: 1,
+            }}
+          >
+            <Dropdown
+              data={categories}
+              value={filter}
+              onChange={HandleDropdown}
+              styleValue={{ color: "#fff" }}
+              styleList={styles.filterList}
+              styleContainer={styles.filter}
+              placeholder={"FILTER BY "}
+            />
+          </View>
+          {display ? (
+            <ActivityIndicator
+              size="large"
+              color="#ffffff"
+              style={{
+                position: "absolute",
+                top: "50%",
+              }}
+            />
+          ) : null}
+
           <FlatList
             data={myList}
             style={styles.list}
-            keyExtractor={(item) => item.key.toString()}
+            refreshing={refresh}
+            keyExtractor={(item) => item._id}
             ListEmptyComponent={EmptyList}
+            onRefresh={() => {
+              data();
+            }}
             renderItem={({ item }) => (
               <View style={styles.cardContainer}>
-                <View style={global.row}>
+                <View style={styles.cardHeader}>
                   <Text style={styles.title}>{item.name}</Text>
-                  <TouchableOpacity>
-                    <Image source={dots} />
-                  </TouchableOpacity>
+                  <Text style={styles.status}>{item.status}</Text>
+                  <Text style={styles.due}>{item.due}</Text>
                 </View>
                 <View style={styles.box}>
                   <View style={styles.taskContainer}>
@@ -116,14 +169,10 @@ export default function List() {
                             },
                           ]}
                         >
-                          <View style={styles.checkBox}>
-                            <CheckBox
-                              center
-                              checkedIcon={<Image source={check} />}
-                              uncheckedColor="transparent"
-                              checkedColor="#000"
-                              checked={checked}
-                              onPress={() => setChecked(!checked)}
+                          <View>
+                            <Checkbox
+                              checkState={() => {}}
+                              id={item.id.toString()}
                             />
                           </View>
                           <Text style={styles.description}>{item.step}</Text>
@@ -133,10 +182,18 @@ export default function List() {
                   </View>
 
                   <View style={styles.buttons}>
-                    {/* <TouchableOpacity style={styles.button}>
+                    <TouchableOpacity
+                      style={styles.button}
+                      onPress={() => navigation.navigate("Input", item)}
+                    >
                       <Image source={edit} />
-                    </TouchableOpacity> */}
-                    <TouchableOpacity style={styles.button}>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.button}
+                      onPress={() => {
+                        Delete(item._id);
+                      }}
+                    >
                       <Image source={trash} />
                     </TouchableOpacity>
                   </View>
@@ -146,7 +203,7 @@ export default function List() {
           ></FlatList>
         </View>
 
-        <FooterMenu />
+        <FooterMenu active={"list"} />
       </ImageBackground>
     </View>
   );

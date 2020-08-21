@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { useNavigation } from "@react-navigation/native";
-import AsyncStorage from "@react-native-community/async-storage";
 import {
   Text,
   View,
@@ -9,6 +8,8 @@ import {
   TouchableOpacity,
   ImageBackground,
   StatusBar,
+  FlatList,
+  Alert,
 } from "react-native";
 
 // Styles
@@ -32,46 +33,59 @@ export default function Category() {
   const [input, setInput] = useState();
 
   const navigation = useNavigation();
-
-  async function getData() {
-    try {
-      const jsonValue = await AsyncStorage.getItem("categories");
-      jsonValue != null ? setCategories(JSON.parse(jsonValue)) : null;
-    } catch (e) {
-      // read error
-    }
-  }
-
-  async function storeData(key, value) {
-    try {
-      const jsonValue = JSON.stringify(value);
-      await AsyncStorage.setItem(key, jsonValue);
-
-      // read storage
-      const currentStorage = await AsyncStorage.getItem("categories");
-      console.log(`My current storage: \n  ${currentStorage}`);
-    } catch (e) {
-      Alert.alert("", "Something went really wrong, please try again.");
-      navigation.navigate("Menu");
-      // saving error
-    } finally {
-      Alert.alert("", "Your Category Was Created.");
-      //navigation.navigate("Menu");
-    }
-  }
   useEffect(() => {
     getData();
   }, []);
 
-  function addNewCategory() {
-    setCategories([
-      ...categories,
-      {
-        value: input,
-      },
-    ]);
-    storeData("categories", categories);
-    setInput();
+  async function getData() {
+    try {
+      const response = await fetch(
+        "https://tasklist-bd7f.restdb.io/rest/category",
+        {
+          method: "GET",
+          headers: {
+            Accept: "application/json",
+            "Content-type": "application/json",
+            "Cache-control": "no-cache",
+            "x-apikey": "c668b0b27d8088689f8fdbd792798c4d041fd",
+          },
+        }
+      )
+        .then((response) => response.json())
+        .then((response) => {
+          let cat = response.map((item) => {
+            console.log(`Get Categories: ${JSON.stringify(item)}`);
+            return item;
+          });
+
+          setCategories(cat);
+        });
+    } catch (e) {
+      console.log(e);
+    }
+  }
+
+  async function storeData() {
+    try {
+      await fetch("https://tasklist-bd7f.restdb.io/rest/category", {
+        method: "POST",
+        headers: {
+          "cache-control": "no-cache",
+          "x-apikey": "c668b0b27d8088689f8fdbd792798c4d041fd",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          value: input,
+          label: input,
+        }),
+      });
+    } catch (e) {
+      console.log(e);
+    } finally {
+      setInput();
+      Alert.alert("", "Your New Category Was Created.");
+      getData();
+    }
   }
 
   return (
@@ -104,14 +118,35 @@ export default function Category() {
             onChangeText={(text) => setInput(text)}
             value={input}
           />
-          <TouchableOpacity
-            style={styles.submit}
-            onPress={() => addNewCategory()}
-          >
+          <TouchableOpacity style={styles.submit} onPress={() => storeData()}>
             <Text style={styles.textSubmit}>Save</Text>
           </TouchableOpacity>
+          <Text
+            style={{
+              fontSize: 20,
+              color: "#fff",
+              marginBottom: 10,
+              alignSelf: "flex-start",
+              marginTop: 20,
+            }}
+          >
+            {" "}
+            Current Categories:{" "}
+          </Text>
+          <FlatList
+            data={categories}
+            style={styles.categoriesList}
+            keyExtractor={(item) => item._id}
+            renderItem={({ item }) => (
+              <View style={global.row}>
+                <Text style={{ fontSize: 20, color: "#fff", marginBottom: 10 }}>
+                  {" "}
+                  - {item.value}
+                </Text>
+              </View>
+            )}
+          ></FlatList>
         </View>
-
         <FooterMenu />
       </ImageBackground>
     </View>

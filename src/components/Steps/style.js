@@ -68,4 +68,10 @@ export default StyleSheet.create({
     fontSize: 20,
     fontWeight: "bold",
   },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    width: "100%",
+  },
 });

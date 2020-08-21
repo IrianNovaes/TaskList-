@@ -14,7 +14,12 @@ export default StyleSheet.create({
 
     alignItems: "center",
     paddingHorizontal: 10,
-    marginTop: 150,
+    marginTop: 20,
+  },
+  categoriesList: {
+    maxHeight: "40%",
+    alignSelf: "flex-start",
+    marginLeft: 15,
   },
   submit: {
     borderRadius: 50,
@@ -28,6 +33,7 @@ export default StyleSheet.create({
 
     alignItems: "center",
     justifyContent: "center",
+    marginBottom: 20,
   },
   textSubmit: {
     color: "#fff",

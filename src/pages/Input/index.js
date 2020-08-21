@@ -1,9 +1,6 @@
 import React, { useState, useEffect } from "react";
-import AsyncStorage from "@react-native-community/async-storage";
 import HideWithKeyboard from "react-native-hide-with-keyboard";
-import { useNavigation } from "@react-navigation/native";
-import { Dropdown } from "react-native-material-dropdown";
-import { CheckBox } from "react-native-elements";
+import { useNavigation, useRoute } from "@react-navigation/native";
 import {
   Text,
   View,
@@ -14,136 +11,106 @@ import {
   ImageBackground,
   StatusBar,
   FlatList,
-  KeyboardAvoidingView,
+  ActivityIndicator,
+  ScrollView,
 } from "react-native";
+
+//services
+import { getCategories, storeTask, getLoggedUser } from "../../services/api";
 
 // Styles
 import styles from "./style";
 import global from "../global";
 
 //Components
+import Dropdown from "../../components/Dropdown";
 import FooterMenu from "../../components/Footer";
 import TopMenu from "../../components/TopMenu";
+import Steps from "../../components/Steps";
 
 // Images
 import bg from "../../assets/bg.png";
-import check from "../../assets/check.png";
-import plus from "../../assets/Plus.png";
 import goBack from "../../assets/goBack.png";
-import menu from "../../assets/menuTop.png";
 
 export default function Index() {
-  //
-  const [taskName, setTaskName] = useState();
-  const [taskStatus, setTaskStatus] = useState();
-  const [taskCategory, setTaskCategory] = useState();
-  const [taskDueDate, setTaskDueDate] = useState();
-  const [checked, setChecked] = useState(false); // checkBox needs improvements
-  const [myList, setMyList] = useState([]); // Final List
-  const [indexStep, setIndexStep] = useState([1]); // Input Add
-  const [taskSteps, setTaskSteps] = useState([
-    { id: 1, checked: false, step: "" },
-  ]);
-
-  const [update, setUpdate] = useState(false);
-
   const navigation = useNavigation();
+  const route = useRoute();
 
-  //storage config
+  const [display, setDisplay] = useState(false);
+  const [edit, setEdit] = useState(false);
 
-  const categoriesArray = [
-    {
-      value: "Studies",
-    },
-    {
-      value: "Household",
-    },
-    {
-      value: "Work",
-    },
+  const [taskName, setTaskName] = useState("");
+  const [taskStatus, setTaskStatus] = useState("");
+  const [taskCategory, setTaskCategory] = useState("");
+  const [taskDueDate, setTaskDueDate] = useState("");
+  const [user, setUser] = useState("");
+  const [taskSteps, setTaskSteps] = useState();
+  const [categories, setCategories] = useState([]);
+
+  const task = JSON.stringify({
+    name: taskName,
+    status: taskStatus,
+    category: taskCategory,
+    due: taskDueDate,
+    user: user,
+    steps: taskSteps,
+  });
+
+  const status = [
+    { _id: "1", value: "Pending" },
+    { _id: "2", value: "Started" },
+    { _id: "3", value: "Finalized" },
+    { _id: "4", value: "Abandoned" },
   ];
 
   async function getData() {
-    try {
-      const jsonValue = await AsyncStorage.getItem("myTasks");
-      jsonValue != null ? setMyList(JSON.parse(jsonValue)) : null;
-    } catch (e) {
-      // read error
-    }
+    setDisplay(true);
+
+    const cat = await getCategories();
+    setCategories(cat);
+    const logged = await getLoggedUser();
+    setUser(logged._id);
+
+    setDisplay(false);
   }
 
-  async function storeData(key, value) {
-    try {
-      const jsonValue = JSON.stringify(value);
-      await AsyncStorage.setItem(key, jsonValue);
-    } catch (e) {
-      Alert.alert("", "Something went really wrong, please try again.");
-      navigation.navigate("Menu");
-      // saving error
-    } finally {
-      // read storage
-      const currentStorage = await AsyncStorage.getItem("myTasks");
-      console.log(`My current storage: \n  ${currentStorage}`);
-      Alert.alert("", "Your Task Was Created.");
-      //navigation.navigate("Menu");
-    }
+  async function saveTask() {
+    setDisplay(true);
+    await storeTask(task);
+    setDisplay(false);
+    navigation.navigate("Menu");
   }
+
   useEffect(() => {
-    getData();
+    if (!route.params) {
+      getData();
+    } else {
+      setTaskName(route.params.name);
+      setTaskCategory(route.params.category);
+      setTaskDueDate(route.params.due);
+      setTaskStatus(route.params.status);
+      setTaskSteps(route.params.steps);
+    }
   }, []);
 
-  ////////// Adds Everything into an Array of objects
-  function addNewItem() {
-    setMyList([
-      ...myList,
-      {
-        key: new Date().valueOf(),
-        name: taskName,
-        status: taskStatus,
-        category: taskCategory,
-        due: taskDueDate,
-        steps: taskSteps,
-      },
-    ]);
-    storeData("myTasks", myList);
-  }
+  useEffect(() => {
+    const abortController = new AbortController();
+    return function cleanup() {
+      abortController.abort();
+    };
+  }, []);
 
-  /////////// Add a new input and checkbox on the steps section 'unrelated'(Using the value as an Id, you can improve this later might conflict when deleting) to the TaskSteps State
-  function updateIndex() {
-    let myInput = indexStep.length + 1;
-    setIndexStep((prev) => [...prev, myInput]);
-  }
+  const HandleDropdownCategory = (value) => {
+    setTaskCategory(value);
+  };
+  const HandleDropdownStatus = (value) => {
+    setTaskStatus(value);
+  };
 
-  ////////// Automatically saves all the steps added into an array to be later pushed into the full list
-  function addNewStep(value, id) {
-    const update = taskSteps.some((e) => {
-      return e.id == id;
-    });
-    let updatedList = [];
+  const HandleSteps = (value) => {
+    setTaskSteps(value);
+  };
 
-    if (update) {
-      updatedList = taskSteps.map((item) => {
-        if (item.id === id && typeof value === "boolean") {
-          return { ...item, checked: value };
-        } else if (item.id === id && typeof value === "string") {
-          return { ...item, step: value };
-        } else {
-          return item;
-        }
-      });
-    } else if (typeof value === "string") {
-      // Don't want to create a task only with the checked info, default value should be false
-      updatedList = taskSteps.map((item) => {
-        return item;
-      });
-      updatedList.push({ id: id, checked: false, step: value });
-    } else {
-      Alert.alert("", "Enter a Task First.");
-    }
-    updatedList.length > 0 ? setTaskSteps(updatedList) : {};
-  }
-
-  //console.info(`My Steps: ${JSON.stringify(myList)}`);
   return (
     <View style={global.container}>
       <StatusBar
@@ -151,6 +118,7 @@ export default function Index() {
         translucent={true}
         backgroundColor={"transparent"}
       />
+
       <ImageBackground source={bg} style={global.bg}>
         <View style={global.wrapper}>
           <View style={[global.row, { paddingRight: 20 }]}>
@@ -158,8 +126,13 @@ export default function Index() {
               onPress={() => {
                 navigation.goBack();
               }}
+              style={{ width: 30, height: 30 }}
             >
-              <Image source={goBack} style={{ width: 20, height: 25 }} />
+              <Image
+                source={goBack}
+                resizeMethod={"scale"}
+                resizeMode={"contain"}
+              />
             </TouchableOpacity>
             <TopMenu />
           </View>
@@ -169,92 +142,100 @@ export default function Index() {
               <Text style={global.title}>Add a New Task</Text>
             </HideWithKeyboard>
           </View>
-
-          <KeyboardAvoidingView style={styles.form} behavior={"padding"}>
-            {/* Task Name Label */}
-            <Text style={styles.label}>Task Name</Text>
-            {/* Task Name Input */}
-            <TextInput
-              style={[styles.input, { width: "100%" }]}
-              placeholder={"Clean the house"}
-              onChangeText={(text) => setTaskName(text)}
-              value={taskName}
-            />
-            {/* Step Label */}
-            <View style={[global.row, { marginBottom: 5 }]}>
-              <Text style={styles.label}>Steps</Text>
-              <TouchableOpacity onPress={() => updateIndex()}>
-                <Image
-                  source={plus}
-                  style={{ width: 20, height: 20, marginRight: 5 }}
-                />
-              </TouchableOpacity>
-            </View>
-
-            {/* Steps Section FlatList Missing Functionality  */}
-            <FlatList
-              data={indexStep}
-              style={styles.steps}
-              keyExtractor={(item) => item.toString()}
-              renderItem={({ item }) => (
-                <View style={global.row}>
-                  <TouchableOpacity
-                    style={styles.checkBox}
-                    onPress={() => addNewStep(checked, item)}
-                  >
-                    <CheckBox
-                      center
-                      checkedIcon={<Image source={check} />}
-                      uncheckedColor="transparent"
-                      checkedColor="#000"
-                      checked={checked}
-                      onPress={() => {}}
-                    />
-                  </TouchableOpacity>
-                  <TextInput
-                    style={[styles.input, { width: "80%" }]}
-                    placeholder={"Enter your task"}
-                    onChangeText={(text) => addNewStep(text, item)}
-                  />
-                </View>
-              )}
-            ></FlatList>
-
-            {/* Task Status Label */}
-            <Text style={[styles.label, { marginTop: 10 }]}>Status</Text>
-            {/* Task Status Input */}
-            <TextInput
-              style={[styles.input, { width: "100%" }]}
-              placeholder={"Pending"}
-              onChangeText={(text) => setTaskStatus(text)}
-              value={taskStatus}
-            />
-            {/* Task Status Label */}
-            <Text style={styles.label}>Category</Text>
-            {/* Task Status Input */}
-            <View style={[styles.dropdown, { width: "100%" }]}>
-              <Dropdown
-                data={categoriesArray}
-                dropdownOffset={{ top: 0, left: 0 }}
-                onChangeText={(text) => setTaskCategory(text)}
-                value={taskCategory}
+          <ScrollView
+            nestedScrollEnabled={true}
+            style={{
+              width: "100%",
+              height: "100%",
+              marginBottom: 10,
+            }}
+          >
+            <View style={[styles.form, { paddingBottom: 35, marginTop: 10 }]}>
+              {/* Task Name Label */}
+              <Text style={styles.label}>Task Name</Text>
+              {/* Task Name Input */}
+              <TextInput
+                style={[styles.input, { width: "100%" }]}
+                placeholder={"Clean the house"}
+                onChangeText={(text) => setTaskName(text)}
+                value={taskName}
               />
+              {display ? (
+                <ActivityIndicator
+                  size="large"
+                  color="#ffffff"
+                  style={{
+                    position: "absolute",
+                    top: "50%",
+                    left: "45%",
+                  }}
+                />
+              ) : null}
+              {/* Step Label */}
+
+              <Steps
+                onChange={() => {
+                  HandleSteps;
+                }}
+                data={taskSteps}
+              />
+
+              {/* Task Status Label */}
+              <Text style={styles.label}>Category</Text>
+              {/* Task Status Input */}
+              <View style={{ width: "100%" }}>
+                <Dropdown
+                  data={categories}
+                  value={taskCategory}
+                  onChange={HandleDropdownCategory}
+                  placeholder={"Category"}
+                  styleValue={{ color: "#fff" }}
+                  styleContainer={styles.input}
+                  styleList={{
+                    borderTopRightRadius: 20,
+                    borderTopLeftRadius: 20,
+                  }}
+                />
+              </View>
+
+              {/* Task Status Label */}
+              <Text style={styles.label}>Status</Text>
+              {/* Task Status Input */}
+
+              <Dropdown
+                data={status}
+                value={taskStatus}
+                onChange={HandleDropdownStatus}
+                placeholder={"Status"}
+                styleValue={{ color: "#fff" }}
+                styleContainer={styles.input}
+                styleList={{
+                  borderTopRightRadius: 20,
+                  borderTopLeftRadius: 20,
+                }}
+              />
+
+              {/* Task Status Label */}
+              <Text style={styles.label}>Due Date</Text>
+              {/* Task Status Input */}
+              <TextInput
+                style={[styles.input, { width: "100%" }]}
+                placeholder={"Due Date"}
+                onChangeText={(text) => setTaskDueDate(text)}
+                value={taskDueDate}
+              />
+
+              <View style={{ height: 100, width: "100%" }} />
             </View>
-            {/* Task Status Label */}
-            <Text style={styles.label}>Due Date</Text>
-            {/* Task Status Input */}
-            <TextInput
-              style={[styles.input, { width: "100%" }]}
-              placeholder={"Today"}
-              onChangeText={(text) => setTaskDueDate(text)}
-              value={taskDueDate}
-            />
-          </KeyboardAvoidingView>
-          <TouchableOpacity style={styles.submit} onPress={() => addNewItem()}>
-            <Text style={styles.textSubmit}>Save</Text>
-          </TouchableOpacity>
+          </ScrollView>
+          <HideWithKeyboard style={{ width: "100%", alignItems: "center" }}>
+            <TouchableOpacity style={styles.submit} onPress={() => saveTask()}>
+              <Text style={styles.textSubmit}>Save</Text>
+            </TouchableOpacity>
+          </HideWithKeyboard>
         </View>
-        <FooterMenu />
+
+        <FooterMenu active={"input"} />
       </ImageBackground>
     </View>
   );

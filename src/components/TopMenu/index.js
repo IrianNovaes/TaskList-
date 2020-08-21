@@ -15,7 +15,11 @@ export default function TopMenu() {
 
   function openMenu() {
     return (
-      <View style={styles.menuContainer}>
+      <View>
+        <TouchableOpacity
+          style={styles.menuContainer}
+          onPress={() => setRender(!render)}
+        />
         <View style={styles.wrapper}>
           <TouchableOpacity
             onPress={() => {
@@ -48,6 +52,15 @@ export default function TopMenu() {
             }}
           >
             <Text style={styles.menuText}> Categories</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.item}
+            onPress={() => {
+              navigation.navigate("Login", "Logout");
+            }}
+          >
+            <Text style={styles.menuText}>LogOut</Text>
           </TouchableOpacity>
         </View>
       </View>

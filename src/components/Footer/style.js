@@ -20,5 +20,18 @@ export default StyleSheet.create({
   },
   button: {
     opacity: 1,
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  active: {
+    borderBottomWidth: 5,
+    borderColor: "#000",
+    width: 100,
+    bottom: 3,
+    position: "absolute",
+
+    borderTopLeftRadius: 5,
+    borderTopRightRadius: 5,
   },
 });

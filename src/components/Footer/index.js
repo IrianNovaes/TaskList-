@@ -11,7 +11,7 @@ import seeTask from "../../assets/seeTask.png";
 import addTask from "../../assets/addTask.png";
 import menu from "../../assets/menu.png";
 
-export default function Footer() {
+export default function Footer(props) {
   const navigation = useNavigation();
 
   function navigateToInput() {
@@ -36,12 +36,15 @@ export default function Footer() {
 
           <TouchableOpacity onPress={navigateToList} style={styles.button}>
             <Image source={seeTask} />
+            {props.active === "list" ? <View style={styles.active} /> : null}
           </TouchableOpacity>
           <TouchableOpacity onPress={navigateToMenu} style={styles.button}>
             <Image source={menu} />
+            {props.active === "menu" ? <View style={styles.active} /> : null}
           </TouchableOpacity>
           <TouchableOpacity onPress={navigateToInput} style={styles.button}>
             <Image source={addTask} />
+            {props.active === "input" ? <View style={styles.active} /> : null}
           </TouchableOpacity>
         </View>
       </HideWithKeyboard>
